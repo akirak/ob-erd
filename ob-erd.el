@@ -36,41 +36,23 @@
   :group 'org-babel
   :type 'string)
 
-(defcustom ob-erd-imagemagick-convert-executable-path "convert"
-  "Path to imagemagick's convert executable."
-  :group 'org-babel
-  :type 'string)
-
 ;;;###autoload
 (defun org-babel-execute:erd (body params)
   "Execute a block of erd code in BODY with org-babel.
 Takes a file path from PARAMS.
 This function is called by `org-babel-execute-src-block'."
-  (let* ((tmp-out-file (make-temp-file "ob-erd"))
-         (tmp-file (make-temp-file "ob-erd"))
-         (out-file (or (cdr (assq :file params))
+  (let* ((out-file (or (cdr (assq :file params))
                        (error "Erd requires a \":file\" header argument")))
 
-         (erd-cmd (format "%s -i %s -o %s"
-                            org-erd-executable-path
-                            tmp-file
-                            tmp-out-file))
-
-         (convert-cmd (format "%s %s %s"
-                            org-imagemagick-convert-executable-path
-                            tmp-out-file
-                            out-file)))
-
-    (org-babel-process-file-name tmp-file)
-    (org-babel-process-file-name tmp-out-file)
-    (org-babel-process-file-name out-file)
-
-    (with-temp-file tmp-file
-      (insert body))
-
-    (org-babel-eval erd-cmd "")
-    (org-babel-eval convert-cmd "")
-
+         (erd-cmd (mapconcat #'shell-quote-argument
+                             (list ob-erd-executable-path
+                                   "-o"
+                                   out-file)
+                             " ")))
+    (unless (executable-find ob-erd-executable-path)
+      (error "Cannot find or execute %s, please check `ob-erd-executable-path'" ob-erd-executable-path))
+    (message erd-cmd)
+    (org-babel-eval erd-cmd body)
     nil))
 
 (provide 'ob-erd)
